@@ -31,7 +31,7 @@ export async function POST(
 
     const imageUrl = await generateAndStoreImage(post.post_type, post.image_prompt)
 
-    const updated = await updatePost(id, { generated_image_url: imageUrl })
+    const updated = await updatePost(id, { image_url: imageUrl })
 
     return NextResponse.json({
       success: true,
