@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --liberty-red: #B22234;
+  --liberty-blue: #3C3B6E;
+  --liberty-cream: #F5F0E8;
+  --liberty-gold: #D4AF37;
+}
+
+body {
+  background-color: var(--liberty-cream);
+  font-family: Georgia, Cambria, 'Times New Roman', serif;
+}
