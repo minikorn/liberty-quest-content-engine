@@ -3,7 +3,11 @@
  *
  * Routes by post type:
  *   Illustrated posts (trivia, nostalgia, product, answer_reveal)
- *     → DALL-E 3 (vintage Americana illustration style)
+ *     → gpt-image-1 (vintage Americana illustration style)
+ *       NOTE: DALL-E 3 was retired from the API on 2026-05-12; gpt-image-1
+ *       is its replacement. Unlike DALL-E 3, it returns base64 image data
+ *       (no hosted URL), so Cloudinary is REQUIRED for this strategy —
+ *       there's no usable fallback without it.
  *
  *   Historical posts (history, heroes, inventions)
  *     → Unsplash (real historical photography)
@@ -37,12 +41,12 @@ const STRATEGY_MAP: Record<PostType, ImageStrategy> = {
 }
 
 // ---------------------------------------------------------------------------
-// DALL-E 3 image generation
+// gpt-image-1 illustration generation (DALL-E 3 replacement)
 // ---------------------------------------------------------------------------
 
 /**
- * Style prefix injected into every DALL-E prompt to maintain brand consistency.
- * Produces the vintage Americana / Reader's Digest aesthetic.
+ * Style prefix injected into every illustration prompt to maintain brand
+ * consistency. Produces the vintage Americana / Reader's Digest aesthetic.
  */
 const DALLE_STYLE_PREFIX = `
 Vintage Americana illustration style. Warm, nostalgic color palette — cream, burgundy, navy, gold.
@@ -50,27 +54,37 @@ Norman Rockwell inspired. Reader's Digest magazine aesthetic from the 1950s-1960
 Clean, family-friendly, patriotic but non-political. No text or words in the image.
 High quality digital art. Subject: `.trim()
 
-async function generateWithDalle(imagePrompt: string): Promise<string> {
+/**
+ * Generates an illustration with gpt-image-1 and returns it as a base64
+ * data URI (`data:image/png;base64,...`).
+ *
+ * gpt-image-1 (unlike the retired DALL-E 3) always returns base64-encoded
+ * image data — there is no `url` field and no `response_format` option to
+ * request one. The caller MUST upload this to Cloudinary (or similar) to
+ * get a real, shareable URL; the data URI itself is too large to store in
+ * Postgres or hand to the Facebook Graph API.
+ */
+async function generateWithGptImage(imagePrompt: string): Promise<string> {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY not set')
   }
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-  // Trim prompt to stay under DALL-E's 4000 char limit
+  // Trim prompt to stay comfortably under the model's prompt length limit
   const fullPrompt = `${DALLE_STYLE_PREFIX} ${imagePrompt}`.slice(0, 3900)
 
   const response = await openai.images.generate({
-    model: 'dall-e-3',
+    model: 'gpt-image-1',
     prompt: fullPrompt,
     n: 1,
     size: '1024x1024',
-    quality: 'standard',
+    quality: 'high',
   })
 
-  const url = response.data?.[0]?.url
-  if (!url) throw new Error('DALL-E returned no image URL')
-  return url
+  const b64 = response.data?.[0]?.b64_json
+  if (!b64) throw new Error('gpt-image-1 returned no image data')
+  return `data:image/png;base64,${b64}`
 }
 
 // ---------------------------------------------------------------------------
@@ -238,28 +252,31 @@ export async function generateAndStoreImage(
   imagePrompt: string
 ): Promise<string> {
   const strategy = STRATEGY_MAP[postType] ?? 'dalle'
+  const hasCloudinary =
+    !!process.env.CLOUDINARY_CLOUD_NAME && !!process.env.CLOUDINARY_UPLOAD_PRESET
 
-  // Step 1: Get image URL from the appropriate source
-  let sourceUrl: string
   if (strategy === 'dalle') {
-    sourceUrl = await generateWithDalle(imagePrompt)
-  } else {
-    sourceUrl = await searchUnsplash(imagePrompt)
+    // gpt-image-1 only ever returns base64 image data (no hosted URL), so
+    // Cloudinary is mandatory here — a data: URI is too large for Postgres
+    // and Facebook's Graph API can't use it as a photo source.
+    if (!hasCloudinary) {
+      throw new Error(
+        'CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET must be set to generate ' +
+        'illustrations — gpt-image-1 returns base64 image data, not a hosted URL, ' +
+        'so it must be uploaded to Cloudinary to produce a usable, permanent link.'
+      )
+    }
+    const dataUri = await generateWithGptImage(imagePrompt)
+    return await uploadToCloudinary(dataUri)
   }
 
-  // Step 2: Upload to Cloudinary for a permanent URL
-  // If Cloudinary isn't configured, return the source URL directly
-  // (fine for Unsplash; DALL-E URLs expire in ~1 hour)
-  const hasCloudinary =
-    process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_UPLOAD_PRESET
-
+  // Unsplash returns a real, already-hosted URL.
+  const sourceUrl = await searchUnsplash(imagePrompt)
   if (!hasCloudinary) {
-    console.warn('Cloudinary not configured — returning source URL directly')
+    console.warn('Cloudinary not configured — returning Unsplash URL directly')
     return sourceUrl
   }
-
-  const permanentUrl = await uploadToCloudinary(sourceUrl)
-  return permanentUrl
+  return await uploadToCloudinary(sourceUrl)
 }
 
 /**
