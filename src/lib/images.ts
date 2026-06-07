@@ -66,7 +66,6 @@ async function generateWithDalle(imagePrompt: string): Promise<string> {
     n: 1,
     size: '1024x1024',
     quality: 'standard',
-    style: 'vivid',
   })
 
   const url = response.data?.[0]?.url
