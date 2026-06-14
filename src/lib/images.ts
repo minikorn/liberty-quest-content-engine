@@ -1,90 +1,36 @@
 /**
  * Liberty Quest Image Engine
  *
- * Routes by post type:
- *   Illustrated posts (trivia, nostalgia, product, answer_reveal)
- *     → gpt-image-1 (vintage Americana illustration style)
- *       NOTE: DALL-E 3 was retired from the API on 2026-05-12; gpt-image-1
- *       is its replacement. Unlike DALL-E 3, it returns base64 image data
- *       (no hosted URL), so Cloudinary is REQUIRED for this strategy —
- *       there's no usable fallback without it.
- *
- *   Historical posts (history, heroes, inventions)
- *     → Unsplash (real historical photography)
- *
- * All images are uploaded to Cloudinary for permanent URLs.
+ * All post types use Unsplash for real photography.
  *
  * Required env vars:
- *   OPENAI_API_KEY              — already in use
  *   UNSPLASH_ACCESS_KEY         — from unsplash.com/developers
- *   CLOUDINARY_CLOUD_NAME       — your Cloudinary cloud name
- *   CLOUDINARY_UPLOAD_PRESET    — unsigned upload preset (create in Cloudinary dashboard)
+ *   CLOUDINARY_CLOUD_NAME       — your Cloudinary cloud name (optional but recommended)
+ *   CLOUDINARY_UPLOAD_PRESET    — unsigned upload preset (optional but recommended)
+ *
+ * Without Cloudinary, Unsplash URLs are used directly. With Cloudinary,
+ * images are re-hosted for permanence and faster delivery.
  */
 
-import OpenAI from 'openai'
 import type { PostType } from '@/types'
 
 // ---------------------------------------------------------------------------
-// Post type → image strategy
+// Post type → image strategy (all use Unsplash)
 // ---------------------------------------------------------------------------
 
-type ImageStrategy = 'dalle' | 'unsplash'
+type ImageStrategy = 'unsplash'
 
 const STRATEGY_MAP: Record<PostType, ImageStrategy> = {
-  can_you_beat_grandpa: 'dalle',
-  answer_reveal: 'dalle',
-  liberty_quest_product: 'dalle',
-  family_memory: 'dalle',
+  can_you_beat_grandpa: 'unsplash',
+  answer_reveal: 'unsplash',
+  liberty_quest_product: 'unsplash',
+  family_memory: 'unsplash',
   this_week_in_history: 'unsplash',
   american_heroes: 'unsplash',
   american_inventions: 'unsplash',
-}
-
-// ---------------------------------------------------------------------------
-// gpt-image-1 illustration generation (DALL-E 3 replacement)
-// ---------------------------------------------------------------------------
-
-/**
- * Style prefix injected into every illustration prompt to maintain brand
- * consistency. Produces the vintage Americana / Reader's Digest aesthetic.
- */
-const DALLE_STYLE_PREFIX = `
-Vintage Americana illustration style. Warm, nostalgic color palette — cream, burgundy, navy, gold.
-Norman Rockwell inspired. Reader's Digest magazine aesthetic from the 1950s-1960s.
-Clean, family-friendly, patriotic but non-political. No text or words in the image.
-High quality digital art. Subject: `.trim()
-
-/**
- * Generates an illustration with gpt-image-1 and returns it as a base64
- * data URI (`data:image/png;base64,...`).
- *
- * gpt-image-1 (unlike the retired DALL-E 3) always returns base64-encoded
- * image data — there is no `url` field and no `response_format` option to
- * request one. The caller MUST upload this to Cloudinary (or similar) to
- * get a real, shareable URL; the data URI itself is too large to store in
- * Postgres or hand to the Facebook Graph API.
- */
-async function generateWithGptImage(imagePrompt: string): Promise<string> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY not set')
-  }
-
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-
-  // Trim prompt to stay comfortably under the model's prompt length limit
-  const fullPrompt = `${DALLE_STYLE_PREFIX} ${imagePrompt}`.slice(0, 3900)
-
-  const response = await openai.images.generate({
-    model: 'gpt-image-1',
-    prompt: fullPrompt,
-    n: 1,
-    size: '1024x1024',
-    quality: 'high',
-  })
-
-  const b64 = response.data?.[0]?.b64_json
-  if (!b64) throw new Error('gpt-image-1 returned no image data')
-  return `data:image/png;base64,${b64}`
+  did_you_know: 'unsplash',
+  poll_question: 'unsplash',
+  quote_of_the_day: 'unsplash',
 }
 
 // ---------------------------------------------------------------------------
@@ -251,24 +197,11 @@ export async function generateAndStoreImage(
   postType: PostType,
   imagePrompt: string
 ): Promise<string> {
-  const strategy = STRATEGY_MAP[postType] ?? 'dalle'
+  // All strategies use Unsplash — postType retained for future routing if needed
+  void STRATEGY_MAP[postType]
+
   const hasCloudinary =
     !!process.env.CLOUDINARY_CLOUD_NAME && !!process.env.CLOUDINARY_UPLOAD_PRESET
-
-  if (strategy === 'dalle') {
-    // gpt-image-1 only ever returns base64 image data (no hosted URL), so
-    // Cloudinary is mandatory here — a data: URI is too large for Postgres
-    // and Facebook's Graph API can't use it as a photo source.
-    if (!hasCloudinary) {
-      throw new Error(
-        'CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET must be set to generate ' +
-        'illustrations — gpt-image-1 returns base64 image data, not a hosted URL, ' +
-        'so it must be uploaded to Cloudinary to produce a usable, permanent link.'
-      )
-    }
-    const dataUri = await generateWithGptImage(imagePrompt)
-    return await uploadToCloudinary(dataUri)
-  }
 
   // Unsplash returns a real, already-hosted URL.
   const sourceUrl = await searchUnsplash(imagePrompt)
@@ -280,12 +213,10 @@ export async function generateAndStoreImage(
 }
 
 /**
- * Check whether image generation is available (any strategy).
+ * Check whether image fetching is available.
  */
 export function imageGenerationAvailable(): boolean {
-  const hasOpenAI = !!process.env.OPENAI_API_KEY
-  const hasUnsplash = !!process.env.UNSPLASH_ACCESS_KEY
-  return hasOpenAI || hasUnsplash
+  return !!process.env.UNSPLASH_ACCESS_KEY
 }
 
 export { STRATEGY_MAP }

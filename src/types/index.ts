@@ -6,6 +6,9 @@ export type PostType =
   | 'american_heroes'
   | 'liberty_quest_product'
   | 'family_memory'
+  | 'did_you_know'
+  | 'poll_question'
+  | 'quote_of_the_day'
 
 export type PostStatus =
   | 'draft'
@@ -71,6 +74,9 @@ export const POST_TYPE_LABELS: Record<PostType, string> = {
   american_heroes: '🦅 American Heroes',
   liberty_quest_product: '📚 Liberty Quest Product',
   family_memory: '💛 Family Memory',
+  did_you_know: '🔍 Did You Know?',
+  poll_question: '🗳️ Poll',
+  quote_of_the_day: '💬 Quote of the Day',
 }
 
 export const POST_TYPE_COLORS: Record<PostType, string> = {
@@ -81,6 +87,9 @@ export const POST_TYPE_COLORS: Record<PostType, string> = {
   american_heroes: 'bg-red-100 text-red-800',
   liberty_quest_product: 'bg-purple-100 text-purple-800',
   family_memory: 'bg-pink-100 text-pink-800',
+  did_you_know: 'bg-teal-100 text-teal-800',
+  poll_question: 'bg-orange-100 text-orange-800',
+  quote_of_the_day: 'bg-indigo-100 text-indigo-800',
 }
 
 export const STATUS_COLORS: Record<PostStatus, string> = {
@@ -92,23 +101,35 @@ export const STATUS_COLORS: Record<PostStatus, string> = {
   rejected: 'bg-gray-100 text-gray-400',
 }
 
-// Weighted content type distribution
+// Weighted content type distribution (used by weighted random selector)
+// answer_reveal is excluded — generated automatically with trivia posts
 export const CONTENT_WEIGHTS: { type: PostType; weight: number }[] = [
-  { type: 'can_you_beat_grandpa', weight: 40 },
-  { type: 'this_week_in_history', weight: 20 },
-  { type: 'family_memory', weight: 15 },
-  { type: 'american_inventions', weight: 10 },
-  { type: 'american_heroes', weight: 5 },
-  { type: 'liberty_quest_product', weight: 10 },
+  { type: 'can_you_beat_grandpa', weight: 25 },
+  { type: 'did_you_know', weight: 20 },
+  { type: 'this_week_in_history', weight: 12 },
+  { type: 'family_memory', weight: 10 },
+  { type: 'poll_question', weight: 10 },
+  { type: 'american_inventions', weight: 8 },
+  { type: 'quote_of_the_day', weight: 8 },
+  { type: 'liberty_quest_product', weight: 5 },
+  { type: 'american_heroes', weight: 2 },
 ]
 
-// Weekly calendar schedule
+// Weekly calendar schedule — 3 posts/day (auto-scheduler fills actual times)
+// Used only for UI reference; slot times are managed by /api/cron/schedule
 export const WEEKLY_SCHEDULE: { day: number; type: PostType; label: string }[] = [
-  { day: 1, type: 'can_you_beat_grandpa', label: 'Monday' },   // Monday
-  { day: 2, type: 'answer_reveal', label: 'Tuesday' },          // Tuesday
-  { day: 3, type: 'this_week_in_history', label: 'Wednesday' }, // Wednesday
-  { day: 4, type: 'can_you_beat_grandpa', label: 'Thursday' },  // Thursday
-  { day: 5, type: 'liberty_quest_product', label: 'Friday' },   // Friday
-  { day: 6, type: 'family_memory', label: 'Saturday' },         // Saturday
-  { day: 0, type: 'american_inventions', label: 'Sunday' },     // Sunday
+  { day: 1, type: 'can_you_beat_grandpa', label: 'Monday AM' },
+  { day: 1, type: 'did_you_know', label: 'Monday PM' },
+  { day: 2, type: 'answer_reveal', label: 'Tuesday AM' },
+  { day: 2, type: 'poll_question', label: 'Tuesday PM' },
+  { day: 3, type: 'this_week_in_history', label: 'Wednesday AM' },
+  { day: 3, type: 'family_memory', label: 'Wednesday PM' },
+  { day: 4, type: 'can_you_beat_grandpa', label: 'Thursday AM' },
+  { day: 4, type: 'quote_of_the_day', label: 'Thursday PM' },
+  { day: 5, type: 'liberty_quest_product', label: 'Friday AM' },
+  { day: 5, type: 'did_you_know', label: 'Friday PM' },
+  { day: 6, type: 'family_memory', label: 'Saturday AM' },
+  { day: 6, type: 'american_heroes', label: 'Saturday PM' },
+  { day: 0, type: 'american_inventions', label: 'Sunday AM' },
+  { day: 0, type: 'poll_question', label: 'Sunday PM' },
 ]

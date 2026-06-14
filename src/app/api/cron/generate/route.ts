@@ -1,8 +1,12 @@
 /**
  * Railway Cron: Generate content batch
  *
+ * Keeps the draft queue topped up. Runs daily — the schedule cron runs every
+ * 6 hours and auto-schedules whatever's in the queue, so the queue needs to
+ * stay ahead of consumption (3 posts/day × 7-day horizon = 21 posts minimum).
+ *
  * Set up in Railway:
- *   Schedule: 0 9 * * 1   (every Monday at 9 AM)
+ *   Schedule: 0 7 * * *   (every day at 7 AM UTC)
  *   Command:  curl -X POST $NEXT_PUBLIC_APP_URL/api/cron/generate
  *             -H "Authorization: Bearer $CRON_SECRET"
  */
@@ -25,16 +29,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Only generate if draft queue is low (< 10 posts)
+    // Only generate if draft queue is low (< 21 posts = 7 days × 3/day)
     const draftCount = await getDraftCount()
-    if (draftCount >= 10) {
+    if (draftCount >= 21) {
       return NextResponse.json({
         skipped: true,
         reason: `Draft queue has ${draftCount} posts — no generation needed`,
       })
     }
 
-    const needed = Math.max(10, 30 - draftCount)
+    const needed = Math.max(21, 42 - draftCount)
     const result = await generateBatch(needed)
 
     return NextResponse.json({

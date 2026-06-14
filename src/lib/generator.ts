@@ -22,12 +22,15 @@ const MODEL = 'gpt-4o'
 // ---------------------------------------------------------------------------
 
 const WEIGHTS: { type: PostType; weight: number }[] = [
-  { type: 'can_you_beat_grandpa', weight: 40 },
-  { type: 'this_week_in_history', weight: 20 },
-  { type: 'family_memory', weight: 15 },
-  { type: 'american_inventions', weight: 10 },
-  { type: 'american_heroes', weight: 5 },
-  { type: 'liberty_quest_product', weight: 10 },
+  { type: 'can_you_beat_grandpa', weight: 25 },
+  { type: 'did_you_know', weight: 20 },
+  { type: 'this_week_in_history', weight: 12 },
+  { type: 'family_memory', weight: 10 },
+  { type: 'poll_question', weight: 10 },
+  { type: 'american_inventions', weight: 8 },
+  { type: 'quote_of_the_day', weight: 8 },
+  { type: 'liberty_quest_product', weight: 5 },
+  { type: 'american_heroes', weight: 2 },
 ]
 
 export function selectWeightedType(): PostType {
@@ -63,7 +66,7 @@ Rules:
 - The body should open with "🧠 Can You Beat Grandpa?" and include the full question and all 4 options
 - End with "Drop your answer in the comments! Answer revealed tomorrow. 👇"
 - Playful, competitive tone — Grandpa is wise but beatable
-- Image prompt should suggest a vintage Americana illustration style
+- Image prompt should describe the SUBJECT of the trivia question (person, place, event, object) so a stock photo search can find relevant results — no style or aesthetic words
 
 Return this exact JSON structure:
 {
@@ -76,7 +79,7 @@ Return this exact JSON structure:
   "trivia_option_d": "option D text only",
   "trivia_correct_answer": "A" or "B" or "C" or "D",
   "trivia_explanation": "2-3 sentence explanation of the answer",
-  "image_prompt": "detailed image generation prompt in vintage Americana style"
+  "image_prompt": "2-6 subject-matter keywords describing the topic for a stock photo search (e.g. 'George Washington Valley Forge' or 'moon landing astronaut')"
 }`
 
     case 'this_week_in_history':
@@ -91,13 +94,13 @@ Rules:
 - 150-200 words in the post body
 - Connect it to something the reader already knows
 - End with a reflection question or "Did you know?" kicker
-- Image prompt: suggest a period-accurate historical illustration or vintage photo style
+- Image prompt: 2-6 subject-matter keywords about the specific event/person/place for a stock photo search — no style words
 
 Return this exact JSON structure:
 {
   "title": "short headline for internal use",
   "body": "the complete Facebook post copy (150-200 words)",
-  "image_prompt": "detailed image generation prompt"
+  "image_prompt": "subject keywords for stock photo search"
 }`
 
     case 'american_inventions':
@@ -114,13 +117,13 @@ Rules:
 - Include a fun shareable fact
 - Subjects can include: household inventions, industrial inventions, food inventions,
   medical breakthroughs, communication tech, transportation — anything genuinely American
-- Image prompt: vintage illustration or patent drawing style
+- Image prompt: 2-6 subject-matter keywords describing the invention or inventor for a stock photo search — no style words
 
 Return this exact JSON structure:
 {
   "title": "short headline for internal use",
   "body": "the complete Facebook post copy (150-200 words)",
-  "image_prompt": "detailed image generation prompt"
+  "image_prompt": "subject keywords for stock photo search"
 }`
 
     case 'american_heroes':
@@ -136,13 +139,13 @@ Rules:
 - Humble and human tone — not hagiographic
 - 150-200 words
 - The reader should finish feeling like they just met someone worth knowing
-- Image prompt: dignified portrait or historical scene style
+- Image prompt: 2-6 subject-matter keywords describing the person or their context for a stock photo search — no style words
 
 Return this exact JSON structure:
 {
   "title": "short headline for internal use",
   "body": "the complete Facebook post copy (150-200 words)",
-  "image_prompt": "detailed image generation prompt"
+  "image_prompt": "subject keywords for stock photo search"
 }`
 
     case 'liberty_quest_product':
@@ -160,13 +163,13 @@ Rules:
 - Feature the content of the books (sample questions, historical themes, gift potential)
 - 100-150 words
 - Include a call to action (visit the link in bio / check it out)
-- Image prompt: warm book-and-puzzle imagery, Reader's Digest aesthetic
+- Image prompt: 2-6 keywords for stock photo search (e.g. "history books library puzzle game")
 
 Return this exact JSON structure:
 {
   "title": "short headline for internal use",
   "body": "the complete Facebook post copy (100-150 words)",
-  "image_prompt": "detailed image generation prompt"
+  "image_prompt": "subject keywords for stock photo search"
 }`
 
     case 'family_memory':
@@ -183,13 +186,77 @@ Rules:
 - End with the question as its own line
 - American context (1940s-1980s nostalgia is the sweet spot)
 - Should generate lots of comments and shares
-- Image prompt: warm nostalgic family scene or vintage household item
+- Image prompt: 2-6 keywords describing the specific nostalgic subject for a stock photo search (e.g. "family kitchen 1960s" or "drive-in movie theater vintage")
 
 Return this exact JSON structure:
 {
   "title": "short headline for internal use",
   "body": "the complete Facebook post copy (80-120 words ending with the question)",
-  "image_prompt": "detailed image generation prompt"
+  "image_prompt": "subject keywords for stock photo search"
+}`
+
+    case 'did_you_know':
+      return `Today is ${today}.
+
+Generate a "Did You Know?" Facebook post with a surprising, shareable fact about American history, culture, or everyday life.
+
+Rules:
+- Lead with "Did you know..." or a punchy hook that makes people stop scrolling
+- The fact must be genuinely surprising — something most people don't know
+- Keep it SHORT: 60-80 words total
+- End with a question to drive comments ("How many of you knew this one?" / "Did this surprise you?")
+- Topics can be BROAD: history, nature, food, sports, inventions, geography, pop culture, animals, science, holidays — anything with an American angle or universal nostalgic appeal
+- No partisan politics
+- Image prompt: 2-5 subject-matter keywords for stock photo search
+
+Return this exact JSON structure:
+{
+  "title": "short headline for internal use",
+  "body": "the complete Facebook post copy (60-80 words)",
+  "image_prompt": "subject keywords for stock photo search"
+}`
+
+    case 'poll_question':
+      return `Today is ${today}.
+
+Generate a fun two-option poll post for Facebook that gets people debating in the comments.
+
+Rules:
+- Pick two things from the same nostalgic category: two TV shows, two foods, two cars, two musicians, two movies, two childhood games, two vacation spots, etc.
+- The choice should be genuinely hard — both options should be loved
+- Era: 1950s-1990s American nostalgia is the sweet spot, but can go broader
+- Format: open with the choice ("Which do you pick?"), present both options clearly (as emojis + text works great), end with "Comment your pick! 👇"
+- 50-80 words
+- Light, playful, no wrong answer tone
+- Image prompt: 2-5 keywords about the category/era for stock photo search
+
+Return this exact JSON structure:
+{
+  "title": "short headline for internal use",
+  "body": "the complete Facebook post copy",
+  "image_prompt": "subject keywords for stock photo search"
+}`
+
+    case 'quote_of_the_day':
+      return `Today is ${today}.
+
+Generate a "Quote of the Day" post featuring an inspiring, memorable quote from an American historical figure or cultural icon.
+
+Rules:
+- The quote must be REAL and accurately attributed — no paraphrases or apocryphal quotes
+- Prefer less-quoted gems over overused quotes (Lincoln and Churchill are overdone)
+- Include 2-3 sentences of context: who said it, when, and why it still matters
+- 80-120 words total including the quote
+- Warm, reflective tone — not preachy
+- End with a question or reflection prompt
+- Speakers can include: founders, presidents, athletes, writers, civil rights leaders, scientists, entertainers, military figures — anyone American
+- Image prompt: 2-5 keywords about the person or their era for stock photo search
+
+Return this exact JSON structure:
+{
+  "title": "short headline for internal use",
+  "body": "the complete Facebook post copy",
+  "image_prompt": "subject keywords for stock photo search"
 }`
 
     default:
@@ -268,7 +335,7 @@ export async function generateAndSavePost(
       post_type: 'answer_reveal',
       title: `Answer Reveal: ${content.title}`,
       body: revealBody,
-      image_prompt: `Vintage Americana celebration image. American flag bunting, warm colors, celebratory tone. Reader's Digest style illustration.`,
+      image_prompt: `american flag celebration patriotic`,
       linked_post_id: post.id,
       generation_model: MODEL,
     })
